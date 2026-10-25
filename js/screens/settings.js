@@ -1,4 +1,4 @@
-import { state, exportJson, replaceState, dayKey } from "../store.js";
+import { state, exportJson, replaceState, mergePrograms, dayKey } from "../store.js";
 import * as L from "../logic.js";
 import { useState } from "../vendor/hooks.module.js";
 import { html, C, NeonButton, GhostButton, RoundIcon, Card, Badge, Title, ConfirmDialog, toast } from "../ui.js";
@@ -21,7 +21,15 @@ export function SettingsScreen({ onBack }) {
   const pick = () => {
     const i = document.createElement("input");
     i.type = "file"; i.accept = "application/json,.json";
-    i.onchange = async () => { const f = i.files[0]; if (f) setPending(await f.text()); };
+    i.onchange = async () => {
+      const f = i.files[0]; if (!f) return;
+      let data;
+      try { data = JSON.parse(await f.text()); } catch (e) { toast("Файл не подходит"); return; }
+      if (data.kind === "ironlog-programs") {
+        const n = mergePrograms(data);
+        toast(n ? `Добавлено программ: ${n}` : "Программы обновлены");
+      } else setPending(data);
+    };
     i.click();
   };
   const installed = window.navigator.standalone || matchMedia("(display-mode: standalone)").matches;
@@ -34,9 +42,9 @@ export function SettingsScreen({ onBack }) {
       </${Card}>`}
       <${Card}>
         <div class="display" style=${{ fontSize: "16px" }}>Резервная копия</div>
-        <div class="small muted" style=${{ margin: "4px 0 14px" }}>Все тренировки, программы, питание и вес — в одном файле. Нажми «Сохранить копию» → «Сохранить в Файлы» → iCloud Drive. Делай раз в неделю.</div>
+        <div class="small muted" style=${{ margin: "4px 0 14px" }}>Все тренировки, программы, питание и вес — в одном файле. Нажми «Сохранить копию» → «Сохранить в Файлы» → iCloud Drive. Делай раз в неделю. «Загрузить из файла» принимает копию (заменит данные) или файл с программами (добавит их).</div>
         <${NeonButton} text="Сохранить копию" icon="upload" height=${54} size=${13} onClick=${backup} />
-        <div class="mt12"><${GhostButton} text="Восстановить из файла" icon="refresh" style=${{ width: "100%" }} onClick=${pick} /></div>
+        <div class="mt12"><${GhostButton} text="Загрузить из файла" icon="refresh" style=${{ width: "100%" }} onClick=${pick} /></div>
       </${Card}>
       <${Card} onClick=${L.toggleKeepScreen}>
         <div class="row"><div class="grow"><div class="bold">Не гасить экран на тренировке</div><div class="small muted">Чтобы таймер отдыха всегда звенел вовремя</div></div>
@@ -49,6 +57,6 @@ export function SettingsScreen({ onBack }) {
       <div class="small faint">IronLog web · данные хранятся только на этом телефоне</div>
     </div>
     ${pending && html`<${ConfirmDialog} title="Восстановить?" text="Текущие данные заменятся данными из файла." confirm="Восстановить" danger
-      onClose=${() => setPending(null)} onOk=${() => { try { replaceState(JSON.parse(pending)); toast("Данные восстановлены"); } catch (e) { toast("Файл не подходит"); } }} />`}
+      onClose=${() => setPending(null)} onOk=${() => { try { replaceState(pending); toast("Данные восстановлены"); } catch (e) { toast("Файл не подходит"); } }} />`}
   </div>`;
 }

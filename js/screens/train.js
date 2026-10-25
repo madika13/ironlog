@@ -207,6 +207,7 @@ function SetPhase({ a }) {
     </div>`}>
     <${Label} color=${C.lime}>${ex?.muscle || ""}</${Label}>
     <div class="display mt4" style=${{ fontWeight: 900, fontSize: "28px", lineHeight: 1.15 }}>${cur.name}</div>
+    ${ex?.note && html`<${TechNote} text=${ex.note} />`}
     <div class="row mt16" style=${{ alignItems: "flex-end" }}>
       <span class="display lime" style=${{ fontWeight: 900, fontSize: "64px", lineHeight: 1 }}>${cur.sets.length + 1}</span>
       <span class="display faint" style=${{ fontSize: "26px", marginBottom: "6px" }}> / ${a.targetSets}</span>
@@ -229,6 +230,15 @@ function SetPhase({ a }) {
   </${Phase}>`;
 }
 
+/** Подсказка по технике (свёрнута до двух строк, тап — раскрыть). */
+function TechNote({ text }) {
+  const [open, setOpen] = useState(false);
+  return html`<div class="card p14 mt12" onClick=${() => setOpen(!open)} style=${{ borderColor: "color-mix(in srgb, var(--cyan) 40%, transparent)" }}>
+    <div class="label" style=${{ color: C.cyan }}>Как делать</div>
+    <div class="small mt4" style=${open ? null : { display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>${text}</div>
+  </div>`;
+}
+
 /** Обратный отсчёт для планки и прочих упражнений на время. */
 function TimedRunner({ a, name, start, onDone }) {
   const now = useNow(100);
@@ -248,7 +258,7 @@ function TimedRunner({ a, name, start, onDone }) {
         <div class="display" style=${{ fontWeight: 900, fontSize: "84px" }}>${leftSec}</div>
         <div class="small muted">из ${a.reps} сек</div>
       </${Ring}>
-      <div class="small faint mt8">Дыши ровно, пресс напряжён, поясница не провисает.</div>
+      <div class="small faint mt8" style=${{ textAlign: "center" }}>${exercise(L.currentLog(a)?.exerciseId)?.note || "Дыши ровно, пресс напряжён, поясница не провисает."}</div>
     </div>
   </${Phase}>`;
 }

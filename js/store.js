@@ -75,6 +75,26 @@ export function replaceState(next) {
   subs.forEach((f) => f());
 }
 
+/** Добавляет программы из пакета к текущим данным (упражнения сопоставляются по названию). Возвращает число новых программ. */
+export function mergePrograms(pack) {
+  let added = 0;
+  update((s) => {
+    const idMap = {};
+    for (const e of pack.exercises || []) {
+      let mine = s.exercises.find((x) => x.name.toLowerCase() === e.name.toLowerCase());
+      if (!mine) { mine = { ...e }; s.exercises.push(mine); }
+      else { if (e.note) mine.note = e.note; if (e.timed) mine.timed = true; }
+      idMap[e.id] = mine.id;
+    }
+    for (const p of pack.programs || []) {
+      const prog = { ...p, exercises: p.exercises.map((x) => ({ ...x, exerciseId: idMap[x.exerciseId] || x.exerciseId })) };
+      const i = s.programs.findIndex((x) => x.name === p.name);
+      if (i >= 0) { prog.id = s.programs[i].id; s.programs[i] = prog; } else { s.programs.push(prog); added++; }
+    }
+  });
+  return added;
+}
+
 export function useStore() {
   const [, force] = useState(0);
   // подписываемся сразу при первом рендере: эффекты дочерних экранов срабатывают раньше родительских

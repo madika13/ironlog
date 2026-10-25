@@ -1,5 +1,5 @@
 // Офлайн: при обновлении версии кэш пересобирается.
-const VERSION = "ironlog-web-5";
+const VERSION = "ironlog-web-7";
 const FILES = [
   "./", "index.html", "app.css", "manifest.webmanifest",
   "fonts/unbounded.ttf", "fonts/manrope.ttf",

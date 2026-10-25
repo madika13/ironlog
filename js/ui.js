@@ -27,7 +27,7 @@ export const SLOT = { BREAKFAST: "Завтрак", LUNCH: "Обед", SNACK: "П
 export const typeColor = (t) => (t === "FULL_BODY" ? C.lime : C.cyan);
 export const warmColor = (k) => (k === "BIKE" ? C.cyan : C.lime);
 export const slotColor = (s) => ({ BREAKFAST: C.lime, LUNCH: C.cyan, SNACK: C.pink, DINNER: C.violet })[s];
-export const MUSCLES = ["Грудь", "Спина", "Ноги", "Ягодицы", "Плечи", "Бицепс", "Трицепс", "Предплечья", "Пресс", "Кардио"];
+export const MUSCLES = ["Грудь", "Спина", "Ноги", "Ягодицы", "Плечи", "Бицепс", "Трицепс", "Предплечья", "Пресс", "Растяжка", "Кардио"];
 
 export function useNow(ms = 200) {
   const [t, setT] = useState(Date.now());
