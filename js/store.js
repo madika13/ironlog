@@ -75,9 +75,12 @@ export function replaceState(next) {
   subs.forEach((f) => f());
 }
 
-/** Добавляет программы из пакета к текущим данным (упражнения сопоставляются по названию). Возвращает число новых программ. */
-export function mergePrograms(pack) {
-  let added = 0;
+/**
+ * Загружает пакет: программы (упражнения сопоставляются по названию), блюда, цели питания, стартовый вес.
+ * replaceDishes — заменить встроенные блюда пакетными (свои блюда остаются). Возвращает, что добавлено.
+ */
+export function mergePack(pack) {
+  const res = { programs: 0, dishes: 0, goals: false };
   update((s) => {
     const idMap = {};
     for (const e of pack.exercises || []) {
@@ -89,10 +92,19 @@ export function mergePrograms(pack) {
     for (const p of pack.programs || []) {
       const prog = { ...p, exercises: p.exercises.map((x) => ({ ...x, exerciseId: idMap[x.exerciseId] || x.exerciseId })) };
       const i = s.programs.findIndex((x) => x.name === p.name);
-      if (i >= 0) { prog.id = s.programs[i].id; s.programs[i] = prog; } else { s.programs.push(prog); added++; }
+      if (i >= 0) { prog.id = s.programs[i].id; s.programs[i] = prog; } else { s.programs.push(prog); res.programs++; }
     }
+    if (pack.dishes?.length) {
+      if (pack.replaceDishes) s.dishes = s.dishes.filter((d) => d.custom);
+      for (const d of pack.dishes) if (!s.dishes.some((x) => x.name === d.name)) { s.dishes.push({ ...d }); res.dishes++; }
+      // планы на сегодня и вперёд пересоберутся из новых блюд
+      const today = dayKey();
+      s.plans = s.plans.filter((p) => p.day < today);
+    }
+    if (pack.goals) { s.goals = { ...s.goals, ...pack.goals }; res.goals = true; }
+    if (pack.weight && !s.weights.length) s.weights.push({ day: dayKey(), kg: pack.weight });
   });
-  return added;
+  return res;
 }
 
 export function useStore() {

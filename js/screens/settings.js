@@ -1,4 +1,4 @@
-import { state, exportJson, replaceState, mergePrograms, dayKey } from "../store.js";
+import { state, exportJson, replaceState, mergePack, dayKey } from "../store.js";
 import * as L from "../logic.js";
 import { useState } from "../vendor/hooks.module.js";
 import { html, C, NeonButton, GhostButton, RoundIcon, Card, Badge, Title, ConfirmDialog, toast } from "../ui.js";
@@ -26,8 +26,9 @@ export function SettingsScreen({ onBack }) {
       let data;
       try { data = JSON.parse(await f.text()); } catch (e) { toast("Файл не подходит"); return; }
       if (data.kind === "ironlog-programs") {
-        const n = mergePrograms(data);
-        toast(n ? `Добавлено программ: ${n}` : "Программы обновлены");
+        const r = mergePack(data);
+        const parts = [r.programs && `программ: ${r.programs}`, r.dishes && `блюд: ${r.dishes}`, r.goals && "цели питания"].filter(Boolean);
+        toast(parts.length ? "Загружено — " + parts.join(", ") : "Всё уже загружено");
       } else setPending(data);
     };
     i.click();

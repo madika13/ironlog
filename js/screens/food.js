@@ -52,7 +52,7 @@ function DayView() {
       </div>
       ${planned.length > 0 && html`<div class="small muted mt12">План дня: ${planned.reduce((s, x) => s + x.kcal, 0)} ккал · Б ${planned.reduce((s, x) => s + x.protein, 0)} · Ж ${planned.reduce((s, x) => s + x.fat, 0)} · У ${planned.reduce((s, x) => s + x.carbs, 0)}</div>`}
     </${Card}>
-    ${L.SLOTS.map((slot) => {
+    ${L.activeSlots().map((slot) => {
       const ds = dish(plan?.dishes?.[slot]), done = eaten.some((f) => f.slot === slot && f.planned), c = slotColor(slot);
       return html`<${Card} p14 accent=${done ? c : null} onClick=${() => ds && setOpen(ds)}>
         <div class="row"><${Label} color=${c}>${SLOT[slot]}</${Label}><span class="grow"></span>${ds && html`<span class="small muted bold">${ds.kcal} ккал</span>`}</div>
@@ -202,6 +202,8 @@ function Weight() {
     <${Card}>
       <div class="display" style=${{ fontSize: "16px" }}>Цели питания</div>
       <div class="small muted" style=${{ margin: "2px 0 12px" }}>Меняются под твою цель</div>
+      <${Label} style=${{ marginBottom: "8px" }}>Приёмов пищи в день</${Label}>
+      <div style=${{ marginBottom: "12px" }}><${Segmented} options=${["3 — без перекуса", "4 — с перекусом"]} selected=${L.activeSlots().length === 3 ? 0 : 1} onSelect=${(i) => L.setMealCount(i ? 4 : 3)} /></div>
       <div class="row gap8">
         <${Stepper} big=${false} label="ккал" value=${String(g.kcal)} onMinus=${() => G({ kcal: g.kcal - 50 })} onPlus=${() => G({ kcal: g.kcal + 50 })} onEdit=${() => ask("Калории в день", g.kcal, (v) => G({ kcal: Math.round(v) }))} />
         <${Stepper} big=${false} label="цель, кг" value=${fmtWeight(g.targetWeight)} onMinus=${() => G({ targetWeight: g.targetWeight - 1 })} onPlus=${() => G({ targetWeight: g.targetWeight + 1 })} onEdit=${() => ask("Целевой вес, кг", g.targetWeight, (v) => G({ targetWeight: v }))} />

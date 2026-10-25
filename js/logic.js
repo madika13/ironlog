@@ -112,6 +112,8 @@ export const deleteWorkout = (id) => update((s) => { s.history = s.history.filte
 
 // ---------- питание ----------
 const SLOTS = ["BREAKFAST", "LUNCH", "SNACK", "DINNER"];
+/** Приёмы пищи, которые человек использует (в целях можно выбрать 3 или 4). */
+export const activeSlots = () => SLOTS.filter((k) => (state.goals.slots || SLOTS).includes(k));
 const pickRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
 export function toEntry(d, day, slot, portion, planned) {
@@ -124,19 +126,20 @@ export function toEntry(d, day, slot, portion, planned) {
 
 export function generatePlan(day) {
   update((s) => {
-    const by = Object.fromEntries(SLOTS.map((k) => [k, s.dishes.filter((d) => d.slot === k)]));
-    if (SLOTS.some((k) => !by[k].length)) return;
+    const slots = activeSlots().filter((k) => s.dishes.some((d) => d.slot === k));
+    const by = Object.fromEntries(slots.map((k) => [k, s.dishes.filter((d) => d.slot === k)]));
+    if (!slots.length) return;
     const g = s.goals;
     let best = null, bestScore = Infinity;
     for (let i = 0; i < 400; i++) {
-      const pick = Object.fromEntries(SLOTS.map((k) => [k, pickRandom(by[k])]));
+      const pick = Object.fromEntries(slots.map((k) => [k, pickRandom(by[k])]));
       const v = Object.values(pick);
       const kcal = v.reduce((x, d) => x + d.kcal, 0), prot = v.reduce((x, d) => x + d.protein, 0);
       const score = Math.abs(kcal - g.kcal) / 10 + Math.max(0, g.protein - prot) * 1.5 + Math.random() * 4;
       if (score < bestScore) { bestScore = score; best = pick; }
     }
     s.plans = s.plans.filter((p) => p.day !== day);
-    s.plans.push({ day, dishes: Object.fromEntries(SLOTS.map((k) => [k, best[k].id])) });
+    s.plans.push({ day, dishes: Object.fromEntries(slots.map((k) => [k, best[k].id])) });
   });
 }
 export function ensurePlan(day) { if (!planOf(day) && state.dishes.length) generatePlan(day); }
@@ -173,6 +176,13 @@ export const deleteDish = (id) => update((s) => {
   s.plans.forEach((p) => { for (const k in p.dishes) if (p.dishes[k] === id) delete p.dishes[k]; });
 });
 export const setGoals = (g) => update((s) => { s.goals = g; });
+export function setMealCount(n) {
+  update((s) => {
+    s.goals = { ...s.goals, slots: n === 3 ? ["BREAKFAST", "LUNCH", "DINNER"] : SLOTS };
+    const today = dayKey();
+    s.plans = s.plans.filter((p) => p.day < today);
+  });
+}
 export const logWeight = (day, kg) => update((s) => {
   s.weights = s.weights.filter((w) => w.day !== day).concat({ day, kg }).sort((a, b) => a.day.localeCompare(b.day));
 });
