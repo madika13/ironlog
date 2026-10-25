@@ -14,6 +14,12 @@ const TABS = [
   ["stats", "Аналитика", "chart"],
 ];
 
+// реальная высота экрана: на iPhone в режиме «На экран Домой» vh/% врут, а innerHeight — нет
+function syncHeight() { document.documentElement.style.setProperty("--app-h", window.innerHeight + "px"); }
+syncHeight();
+window.addEventListener("resize", syncHeight);
+window.addEventListener("orientationchange", () => setTimeout(syncHeight, 300));
+
 // не даём экрану гаснуть во время тренировки
 let lock = null;
 async function syncWakeLock() {

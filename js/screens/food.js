@@ -106,7 +106,7 @@ function AddFood({ onPick, onCustom, onClose }) {
   const list = state.dishes.filter((d) => (!filter || d.slot === filter) && (!q.trim() || d.name.toLowerCase().includes(q.trim().toLowerCase())));
   return html`<${Sheet} onClose=${onClose}>
     <${NeonButton} text="Своя еда (ввести КБЖУ)" icon="add" height=${50} size=${13} onClick=${onCustom} />
-    <div class="chips mt12"><${Chip} text="Все" on=${!filter} onClick=${() => setFilter(null)} />
+    <div class="chips fill mt12"><${Chip} text="Все" on=${!filter} onClick=${() => setFilter(null)} />
       ${L.SLOTS.map((s) => html`<${Chip} text=${SLOT[s]} on=${filter === s} color=${slotColor(s)} onClick=${() => setFilter(s)} />`)}</div>
     <input class="input mt12" placeholder="Поиск блюда" value=${q} onInput=${(e) => setQ(e.target.value)} />
     ${L.SLOTS.map((s) => {
@@ -141,7 +141,7 @@ function Dishes() {
   const today = dayKey();
   const list = state.dishes.filter((d) => (!filter || d.slot === filter) && (!q.trim() || d.name.toLowerCase().includes(q.trim().toLowerCase())));
   return html`
-    <div class="chips"><${Chip} text=${"Все · " + state.dishes.length} on=${!filter} onClick=${() => setFilter(null)} />
+    <div class="chips fill"><${Chip} text="Все" on=${!filter} onClick=${() => setFilter(null)} />
       ${L.SLOTS.map((s) => html`<${Chip} text=${SLOT[s]} on=${filter === s} color=${slotColor(s)} onClick=${() => setFilter(s)} />`)}</div>
     <input class="input" placeholder="Поиск" value=${q} onInput=${(e) => setQ(e.target.value)} />
     ${list.map((d) => html`<${Card} p14 onClick=${() => setOpen(d)}><div class="row gap12">
