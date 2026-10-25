@@ -102,10 +102,12 @@ function DishSheet({ d, onClose, onAdd, onPlan, onDelete }) {
 }
 
 function AddFood({ onPick, onCustom, onClose }) {
-  const [q, setQ] = useState("");
-  const list = state.dishes.filter((d) => !q.trim() || d.name.toLowerCase().includes(q.trim().toLowerCase()));
+  const [q, setQ] = useState(""), [filter, setFilter] = useState(null);
+  const list = state.dishes.filter((d) => (!filter || d.slot === filter) && (!q.trim() || d.name.toLowerCase().includes(q.trim().toLowerCase())));
   return html`<${Sheet} onClose=${onClose}>
     <${NeonButton} text="Своя еда (ввести КБЖУ)" icon="add" height=${50} size=${13} onClick=${onCustom} />
+    <div class="chips mt12"><${Chip} text="Все" on=${!filter} onClick=${() => setFilter(null)} />
+      ${L.SLOTS.map((s) => html`<${Chip} text=${SLOT[s]} on=${filter === s} color=${slotColor(s)} onClick=${() => setFilter(s)} />`)}</div>
     <input class="input mt12" placeholder="Поиск блюда" value=${q} onInput=${(e) => setQ(e.target.value)} />
     ${L.SLOTS.map((s) => {
       const l = list.filter((d) => d.slot === s); if (!l.length) return null;

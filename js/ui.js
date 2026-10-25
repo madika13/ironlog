@@ -198,10 +198,18 @@ export function LineChart({ values, labels, color = C.lime, fmt = (v) => fmtNum(
 }
 
 // ---------- диалоги ----------
-export const Dialog = ({ title, children, actions, onClose }) => html`
+/** Рендерит детей прямо в <body>, поверх всего приложения (иначе окна обрезаются прокручиваемым экраном). */
+export function Portal({ children }) {
+  const el = useRef(null);
+  if (!el.current) { el.current = document.createElement("div"); document.body.appendChild(el.current); }
+  useEffect(() => { render(children, el.current); });
+  useEffect(() => () => { render(null, el.current); el.current.remove(); }, []);
+  return null;
+}
+export const Dialog = ({ title, children, actions, onClose }) => html`<${Portal}>
   <div class="overlay" onClick=${(e) => e.target === e.currentTarget && onClose()}>
     <div class="dialog fadein">${title && html`<h3>${title}</h3>`}${children}<div class="actions">${actions}</div></div>
-  </div>`;
+  </div></${Portal}>`;
 
 export const Act = ({ text, onClick, color = C.lime, disabled }) => html`
   <button onClick=${onClick} disabled=${disabled} style=${{ color: disabled ? C.faint : color }}>${text}</button>`;
@@ -223,10 +231,24 @@ export const ConfirmDialog = ({ title, text, confirm, danger, onClose, onOk }) =
     <div class="muted">${text}</div>
   </${Dialog}>`;
 
-export const Sheet = ({ children, onClose }) => html`
-  <div class="sheet-wrap" onClick=${(e) => e.target === e.currentTarget && onClose()}>
-    <div class="sheet"><div class="grip"></div>${children}</div>
-  </div>`;
+/** Шторка снизу: закрывается крестиком, тапом мимо или свайпом вниз за верхнюю часть. */
+export function Sheet({ children, onClose }) {
+  const start = useRef(null);
+  const [drag, setDrag] = useState(0);
+  const down = (e) => { start.current = e.touches[0].clientY; };
+  const move = (e) => { if (start.current != null) setDrag(Math.max(0, e.touches[0].clientY - start.current)); };
+  const up = () => { if (drag > 90) onClose(); start.current = null; setDrag(0); };
+  return html`<${Portal}>
+    <div class="sheet-wrap" onClick=${(e) => e.target === e.currentTarget && onClose()}>
+      <div class="sheet" style=${{ transform: drag ? `translateY(${drag}px)` : null, transition: drag ? "none" : null }}>
+        <div class="sheet-head" onTouchStart=${down} onTouchMove=${move} onTouchEnd=${up}>
+          <div class="grip"></div>
+          <button class="sheet-close" onClick=${onClose} aria-label="Закрыть"><${Icon} n="close" /></button>
+        </div>
+        ${children}
+      </div>
+    </div></${Portal}>`;
+}
 
 let toastTimer;
 export function toast(text) {
