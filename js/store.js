@@ -1,7 +1,7 @@
 // Хранилище: одно JSON-состояние в localStorage, формат совместим с Android-версией IronLog.
 import { useEffect, useRef, useState } from "./vendor/hooks.module.js";
 import { EXERCISES, DISHES } from "./seed-data.js";
-import { WEB_SEEDS } from "./programs.js";
+import { WEB_SEEDS, isPerSideName } from "./programs.js";
 
 const KEY = "ironlog";
 const subs = new Set();
@@ -85,8 +85,8 @@ export function mergePack(pack) {
     const idMap = {};
     for (const e of pack.exercises || []) {
       let mine = s.exercises.find((x) => x.name.toLowerCase() === e.name.toLowerCase());
-      if (!mine) { mine = { ...e }; s.exercises.push(mine); }
-      else { if (e.note) mine.note = e.note; if (e.timed) mine.timed = true; }
+      if (!mine) { mine = { ...e, perSide: e.perSide || isPerSideName(e.name) }; s.exercises.push(mine); }
+      else { if (e.note) mine.note = e.note; if (e.timed) mine.timed = true; if (e.perSide) mine.perSide = true; }
       idMap[e.id] = mine.id;
     }
     for (const p of pack.programs || []) {

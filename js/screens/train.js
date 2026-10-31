@@ -171,7 +171,8 @@ function ChoiceList({ a, selected, onPick }) {
     ${rows.map(([id, pe]) => {
     const ex = exercise(id); if (!ex) return null;
     const done = L.setsDone(a, id), target = pe?.sets ?? done, finished = done >= target && done > 0, sel = id === selected;
-    const sub = pe ? (ex.timed ? `${pe.sets} × ${pe.reps} с` : `${pe.sets} × ${pe.reps} · ${weightLabel(lastSet(id)?.weight ?? pe.weight)}`) : "вне программы";
+    const ps = ex.perSide ? " на сторону" : "";
+    const sub = pe ? (ex.timed ? `${pe.sets} × ${pe.reps} с${ps}` : `${pe.sets} × ${pe.reps}${ps} · ${weightLabel(lastSet(id)?.weight ?? pe.weight)}`) : "вне программы";
     return html`<${Card} p14 accent=${sel ? C.lime : null} onClick=${() => onPick(id)}>
       <div class="row gap14">
         <div class="check" style=${{ width: "40px", height: "40px", background: finished ? C.lime : undefined, color: finished ? "#000" : done ? C.lime : C.muted, borderColor: sel ? C.lime : undefined, fontSize: "12px", fontWeight: 700 }}>
@@ -207,7 +208,7 @@ function SetPhase({ a }) {
   const [editW, setEditW] = useState(false), [editR, setEditR] = useState(false), [timer, setTimer] = useState(null);
   if (!cur) return null;
   const ex = exercise(cur.exerciseId), timed = !!ex?.timed, last = lastSet(cur.exerciseId);
-  if (timer) return html`<${TimedRunner} a=${a} name=${cur.name} start=${timer} onDone=${() => setTimer(null)} />`;
+  if (timer) return html`<${TimedRunner} a=${a} name=${cur.name} perSide=${!!ex?.perSide} start=${timer} onDone=${() => setTimer(null)} />`;
   return html`<${Phase} bottom=${html`
     ${timed ? html`<${NeonButton} text=${`Старт · ${a.reps} с`} icon="timer" height=${76} onClick=${() => { sound.tap(); setTimer(Date.now()); }} />`
       : html`<${NeonButton} text="Подход готов" icon="check" height=${76} onClick=${() => { sound.tap(); L.completeSet(); }} />`}
@@ -227,8 +228,8 @@ function SetPhase({ a }) {
     <div class="row gap12 mt20">
       <${Stepper} label="Вес" value=${fmtWeight(a.weight)} unit="кг" onMinus=${() => L.setWeight(a.weight - 2.5)} onPlus=${() => L.setWeight(a.weight + 2.5)} onEdit=${() => setEditW(true)} />
       ${timed
-        ? html`<${Stepper} label="Время" value=${String(a.reps)} unit="сек" onMinus=${() => L.setReps(a.reps - 5)} onPlus=${() => L.setReps(a.reps + 5)} onEdit=${() => setEditR(true)} />`
-        : html`<${Stepper} label="Повторы" value=${String(a.reps)} unit="раз" onMinus=${() => L.setReps(a.reps - 1)} onPlus=${() => L.setReps(a.reps + 1)} onEdit=${() => setEditR(true)} />`}
+        ? html`<${Stepper} label="Время" value=${String(a.reps)} unit=${ex?.perSide ? "сек на сторону" : "сек"} onMinus=${() => L.setReps(a.reps - 5)} onPlus=${() => L.setReps(a.reps + 5)} onEdit=${() => setEditR(true)} />`
+        : html`<${Stepper} label="Повторы" value=${String(a.reps)} unit=${ex?.perSide ? "на сторону" : "раз"} onMinus=${() => L.setReps(a.reps - 1)} onPlus=${() => L.setReps(a.reps + 1)} onEdit=${() => setEditR(true)} />`}
     </div>
     ${last && html`<div class="small muted mt12">Прошлый раз: ${timed ? `${last.reps} с` : `${weightLabel(last.weight)} × ${last.reps}`}</div>`}
     ${cur.sets.length > 0 && html`<div class="mt20"><${Label}>Сделано</${Label}>
@@ -249,24 +250,34 @@ function TechNote({ text }) {
   </div>`;
 }
 
-/** Обратный отсчёт для планки и прочих упражнений на время. */
-function TimedRunner({ a, name, start, onDone }) {
+/** Обратный отсчёт для планки и прочих упражнений на время. perSide — две стороны с паузой на смену. */
+const SWITCH_MS = 5000;
+function TimedRunner({ a, name, perSide, start, onDone }) {
   const now = useNow(100);
-  const total = Math.max(1, a.reps) * 1000, el = now - start, left = total - el, leftSec = Math.max(0, Math.ceil(left / 1000));
+  const side = Math.max(1, a.reps) * 1000, sw = perSide ? SWITCH_MS : 0, total = perSide ? side * 2 + sw : side;
+  const el = now - start;
+  const phase = el < side ? 0 : perSide && el < side + sw ? 1 : 2; // 0 — сторона 1, 1 — смена, 2 — сторона 2
+  const left = phase === 0 ? side - el : phase === 1 ? side + sw - el : total - el;
+  const phaseTotal = phase === 1 ? sw : side;
+  const leftSec = Math.max(0, Math.ceil(left / 1000));
+  const sideSec = Math.min(Math.max(1, Math.floor((phase === 2 ? el - side - sw : el) / 1000)), Math.max(1, a.reps));
   useEffect(() => {
     if (leftSec >= 1 && leftSec <= 3) sound.tick();
-    if (left <= 0) { sound.done(); L.completeSet(); onDone(); }
-  }, [leftSec]);
+    if (el >= total) { sound.done(); L.completeSet(); onDone(); }
+  }, [phase, leftSec]);
+  useEffect(() => { if (phase === 1) sound.done(); }, [phase]);
+  const color = phase === 1 ? C.cyan : C.lime;
+  const title = phase === 1 ? "Смени сторону!" : perSide ? (phase === 0 ? "Сторона 1 из 2" : "Сторона 2 из 2") : "Держим!";
   return html`<${Phase} bottom=${html`
-    <${NeonButton} text=${`Стоп — засчитать ${Math.floor(el / 1000)} с`} icon="check" color=${C.pink}
-      onClick=${() => { L.setReps(Math.max(1, Math.floor(el / 1000))); L.completeSet(); onDone(); }} />
+    <${NeonButton} text=${`Стоп — засчитать ${sideSec} с`} icon="check" color=${C.pink}
+      onClick=${() => { L.setReps(sideSec); L.completeSet(); onDone(); }} />
     <${GhostButton} text="Отменить подход" color=${C.muted} onClick=${onDone} />`}>
     <div class="col center">
-      <${Label} color=${C.lime}>Держим!</${Label}>
+      <${Label} color=${color}>${title}</${Label}>
       <div class="muted" style=${{ margin: "4px 0 10px" }}>${name}</div>
-      <${Ring} progress=${left / total} size=${300}>
+      <${Ring} progress=${left / phaseTotal} size=${300} color=${color}>
         <div class="display" style=${{ fontWeight: 900, fontSize: "84px" }}>${leftSec}</div>
-        <div class="small muted">из ${a.reps} сек</div>
+        <div class="small muted">${phase === 1 ? "перестановка" : `из ${a.reps} сек`}</div>
       </${Ring}>
       <div class="small faint mt8" style=${{ textAlign: "center" }}>${exercise(L.currentLog(a)?.exerciseId)?.note || "Дыши ровно, пресс напряжён, поясница не провисает."}</div>
     </div>

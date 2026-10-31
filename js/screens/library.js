@@ -114,15 +114,16 @@ function Exercises() {
 }
 
 function ExerciseDialog({ e, onClose }) {
-  const [name, setName] = useState(e.name), [muscle, setMuscle] = useState(e.muscle), [timed, setTimed] = useState(!!e.timed);
+  const [name, setName] = useState(e.name), [muscle, setMuscle] = useState(e.muscle), [timed, setTimed] = useState(!!e.timed), [perSide, setPerSide] = useState(!!e.perSide);
   const ok = name.trim().length > 0;
   return html`<${Dialog} title=${e.isNew ? "Новое упражнение" : "Упражнение"} onClose=${onClose} actions=${html`
     ${!e.isNew && html`<${Act} text="Удалить" color=${C.pink} onClick=${() => { L.deleteExercise(e.id); onClose(); }} />`}
     <${Act} text="Отмена" color=${C.muted} onClick=${onClose} />
-    <${Act} text="Сохранить" disabled=${!ok} onClick=${() => { L.saveExercise({ id: e.id, name: name.trim(), muscle, timed }); onClose(); }} />`}>
+    <${Act} text="Сохранить" disabled=${!ok} onClick=${() => { L.saveExercise({ ...e, isNew: undefined, id: e.id, name: name.trim(), muscle, timed, perSide }); onClose(); }} />`}>
     <div class="field-label">Название</div><input class="input" value=${name} onInput=${(ev) => setName(ev.target.value)} />
     <${Label} style=${{ margin: "14px 0 8px" }}>Группа мышц</${Label}>
     <div class="chips wrap">${MUSCLES.map((m) => html`<${Chip} text=${m} on=${m === muscle} onClick=${() => setMuscle(m)} />`)}</div>
     <div class="mt12"><${Chip} text="⏱ На время (секунды вместо повторов)" on=${timed} color=${C.cyan} onClick=${() => setTimed(!timed)} /></div>
+    <div class="mt8"><${Chip} text="⇄ На каждую сторону" on=${perSide} color=${C.cyan} onClick=${() => setPerSide(!perSide)} /></div>
   </${Dialog}>`;
 }
