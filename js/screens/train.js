@@ -4,7 +4,7 @@ import * as L from "../logic.js";
 import { sound } from "../sound.js";
 import {
   html, C, Icon, NeonButton, GhostButton, RoundIcon, Card, Label, Title, Badge, Segmented, Stepper, StatTile, Ring,
-  Dialog, Act, NumberDialog, ConfirmDialog, ExercisePicker, useNow, fmtWeight, fmtNum, fmtBig, fmtClock, fmtRest, weightLabel,
+  Dialog, Act, NumberDialog, ConfirmDialog, ExercisePicker, WorkoutTimeDialog, useNow, fmtWeight, fmtNum, fmtBig, fmtClock, fmtRest, weightLabel,
   TYPE, WARM, typeColor, warmColor,
 } from "../ui.js";
 
@@ -69,13 +69,13 @@ function ProgramCard({ p }) {
 // ---------------- активная тренировка ----------------
 function Active({ a }) {
   const now = useNow(200);
-  const [finish, setFinish] = useState(false);
+  const [finish, setFinish] = useState(false), [editTime, setEditTime] = useState(false);
   const onFinish = () => setFinish(true);
   const P = { a, now, onFinish };
   return html`<div class="col" style=${{ flex: 1, minHeight: 0 }}>
     <div class="topbar">
       <div class="grow">
-        <div class="row gap8"><div class="live"></div><span class="display lime" style=${{ fontSize: "15px" }}>${fmtClock((now - a.startedAt) / 1000)}</span></div>
+        <div class="row gap8" onClick=${() => setEditTime(true)}><div class="live"></div><span class="display lime" style=${{ fontSize: "15px" }}>${fmtClock((now - a.startedAt) / 1000)}</span></div>
         <div class="small muted ellipsis">${a.programName}</div>
       </div>
       <${RoundIcon} n="sun" onClick=${L.toggleKeepScreen} color=${state.keepScreenOn ? C.lime : C.faint} />
@@ -88,6 +88,7 @@ function Active({ a }) {
         : a.phase === "REST_SET" ? html`<${RestSet} ...${P} />`
         : html`<${RestExercise} ...${P} />`}
     </div>
+    ${editTime && html`<${WorkoutTimeDialog} startedAt=${a.startedAt} onClose=${() => setEditTime(false)} onSave=${(ts) => L.setActiveStart(ts)} />`}
     ${finish && html`<${Dialog} title="Завершить тренировку?" onClose=${() => setFinish(false)} actions=${html`
       <${Act} text="Удалить" color=${C.pink} onClick=${() => { setFinish(false); L.discardWorkout(); }} />
       <${Act} text="Отмена" color=${C.muted} onClick=${() => setFinish(false)} />

@@ -272,3 +272,27 @@ export function ExercisePicker({ exercises, onPick, onClose }) {
     </div>`)}
   </${Sheet}>`;
 }
+
+/** "18:45" → тот же день, что и base, с этим временем; null — если формат неверный. */
+export function parseTimeOn(base, hhmm) {
+  const m = /^(\d{1,2})[:.,\s]?(\d{2})$/.exec(String(hhmm).trim());
+  if (!m || +m[1] > 23 || +m[2] > 59) return null;
+  const d = new Date(base); d.setHours(+m[1], +m[2], 0, 0);
+  return d.getTime();
+}
+export const fmtHm = (ts) => new Date(ts).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+
+/** Время тренировки: начало (ЧЧ:ММ) и, для прошедшей, длительность в минутах. */
+export function WorkoutTimeDialog({ startedAt, durationMin, onClose, onSave }) {
+  const [start, setStart] = useState(fmtHm(startedAt)), [dur, setDur] = useState(durationMin != null ? String(durationMin) : "");
+  const ns = parseTimeOn(startedAt, start), nd = parseInt(dur, 10);
+  const ok = ns != null && (durationMin == null ? ns <= Date.now() : nd >= 1 && nd <= 600);
+  return html`<${Dialog} title="Время тренировки" onClose=${onClose} actions=${html`
+    <${Act} text="Отмена" color=${C.muted} onClick=${onClose} />
+    <${Act} text="Сохранить" disabled=${!ok} onClick=${() => { onSave(ns, nd); onClose(); }} />`}>
+    <div class="field-label">Начало, ЧЧ:ММ</div><input class="input" inputmode="numeric" value=${start} onInput=${(e) => setStart(e.target.value)} />
+    ${durationMin != null
+      ? html`<div class="field-label mt12">Длительность, мин</div><input class="input" inputmode="numeric" value=${dur} onInput=${(e) => setDur(e.target.value)} />`
+      : html`<div class="small muted mt8">Секундомер тренировки пересчитается от этого времени.</div>`}
+  </${Dialog}>`;
+}

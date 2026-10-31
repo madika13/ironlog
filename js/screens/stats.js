@@ -2,7 +2,7 @@ import { useState } from "../vendor/hooks.module.js";
 import { state, lastSet, volume, maxWeight, workoutVolume, workoutMinutes } from "../store.js";
 import * as L from "../logic.js";
 import {
-  html, C, Icon, GhostButton, Card, Label, Title, Badge, Segmented, Chip, StatTile, BarChart, LineChart, ConfirmDialog, Dialog, Act, ExercisePicker,
+  html, C, Icon, GhostButton, Card, Label, Title, Badge, Segmented, Chip, StatTile, BarChart, LineChart, ConfirmDialog, Dialog, Act, ExercisePicker, WorkoutTimeDialog,
   fmtWeight, fmtNum, fmtBig, fmtClock, TYPE, WARM, typeColor, warmColor,
 } from "../ui.js";
 
@@ -89,7 +89,7 @@ function Progress({ list }) {
 
 function HistoryRow({ w }) {
   const [open, setOpen] = useState(false), [confirm, setConfirm] = useState(false);
-  const [picking, setPicking] = useState(false), [adding, setAdding] = useState(null), [removeIdx, setRemoveIdx] = useState(null);
+  const [picking, setPicking] = useState(false), [adding, setAdding] = useState(null), [removeIdx, setRemoveIdx] = useState(null), [editTime, setEditTime] = useState(false);
   const d = new Date(w.startedAt);
   return html`<${Card} p14 onClick=${() => setOpen(!open)}>
     <div class="row gap8">
@@ -105,12 +105,15 @@ function HistoryRow({ w }) {
         <button class="icon-btn" style=${{ color: C.faint }} aria-label="Убрать" onClick=${(ev) => { ev.stopPropagation(); setRemoveIdx(i); }}><${Icon} n="close" /></button></div>`)}
       <div class="row gap8 mt12" onClick=${(e) => e.stopPropagation()}>
         <${GhostButton} text="Упражнение" icon="add" color=${C.lime} height=${40} grow onClick=${() => setPicking(true)} />
+        <${GhostButton} text="Время" icon="timer" height=${40} onClick=${() => setEditTime(true)} />
         <${GhostButton} text="Удалить" icon="trash" color=${C.pink} height=${40} onClick=${() => setConfirm(true)} />
       </div>
     </div>`}
     <span onClick=${(e) => e.stopPropagation()}>
       ${removeIdx != null && html`<${ConfirmDialog} title=${`Убрать «${w.exercises[removeIdx]?.name || ""}»?`} text="Упражнение и его подходы пропадут из этой тренировки."
         confirm="Убрать" danger onClose=${() => setRemoveIdx(null)} onOk=${() => L.removeFromHistory(w.id, removeIdx)} />`}
+      ${editTime && html`<${WorkoutTimeDialog} startedAt=${w.startedAt} durationMin=${Math.max(1, Math.round(workoutMinutes(w)))}
+        onClose=${() => setEditTime(false)} onSave=${(ts, dur) => L.editWorkoutTime(w.id, ts, dur)} />`}
       ${picking && html`<${ExercisePicker} exercises=${state.exercises} onClose=${() => setPicking(false)} onPick=${(id) => { setPicking(false); setAdding(id); }} />`}
       ${adding && html`<${AddSetsDialog} exerciseId=${adding} onClose=${() => setAdding(null)} onSave=${(sets) => L.addToHistory(w.id, adding, sets)} />`}
     </span>

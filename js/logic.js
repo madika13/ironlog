@@ -102,7 +102,13 @@ export function removeFromWorkout(id) {
   });
 }
 
+export const setActiveStart = (ts) => act((a) => { a.startedAt = ts; });
+
 // ---------- правка истории ----------
+export const editWorkoutTime = (workoutId, startedAt, durationMin) => update((s) => {
+  const w = s.history.find((x) => x.id === workoutId);
+  if (w) { w.startedAt = startedAt; w.finishedAt = startedAt + durationMin * 60000; }
+});
 /** sets — [{ weight, reps }]. */
 export function addToHistory(workoutId, exerciseId, sets) {
   update((s) => {
