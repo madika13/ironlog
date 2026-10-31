@@ -27,7 +27,7 @@ export function SettingsScreen({ onBack }) {
       try { data = JSON.parse(await f.text()); } catch (e) { toast("Файл не подходит"); return; }
       if (data.kind === "ironlog-programs") {
         const r = mergePack(data);
-        const parts = [r.programs && `программ: ${r.programs}`, r.dishes && `блюд: ${r.dishes}`, r.goals && "цели питания"].filter(Boolean);
+        const parts = [r.programs && `программ: ${r.programs}`, r.dishes && `блюд: ${r.dishes}`, r.goals && "цели питания", r.history && `в историю: ${r.history}`].filter(Boolean);
         toast(parts.length ? "Загружено — " + parts.join(", ") : "Всё уже загружено");
       } else setPending(data);
     };

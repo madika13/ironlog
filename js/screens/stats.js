@@ -1,8 +1,8 @@
 import { useState } from "../vendor/hooks.module.js";
-import { state, volume, maxWeight, workoutVolume, workoutMinutes } from "../store.js";
+import { state, lastSet, volume, maxWeight, workoutVolume, workoutMinutes } from "../store.js";
 import * as L from "../logic.js";
 import {
-  html, C, Icon, GhostButton, Card, Label, Title, Badge, Segmented, Chip, StatTile, BarChart, LineChart, ConfirmDialog,
+  html, C, Icon, GhostButton, Card, Label, Title, Badge, Segmented, Chip, StatTile, BarChart, LineChart, ConfirmDialog, Dialog, Act, ExercisePicker,
   fmtWeight, fmtNum, fmtBig, fmtClock, TYPE, WARM, typeColor, warmColor,
 } from "../ui.js";
 
@@ -89,6 +89,7 @@ function Progress({ list }) {
 
 function HistoryRow({ w }) {
   const [open, setOpen] = useState(false), [confirm, setConfirm] = useState(false);
+  const [picking, setPicking] = useState(false), [adding, setAdding] = useState(null), [removeIdx, setRemoveIdx] = useState(null);
   const d = new Date(w.startedAt);
   return html`<${Card} p14 onClick=${() => setOpen(!open)}>
     <div class="row gap8">
@@ -99,9 +100,41 @@ function HistoryRow({ w }) {
     </div>
     ${open && html`<div class="mt12">
       ${w.warmup && html`<div class="small semibold" style=${{ color: warmColor(w.warmup.kind) }}>${WARM[w.warmup.kind]}: ${fmtNum(w.warmup.minutes, 1)} мин · ${fmtNum(w.warmup.km, 2)} км</div>`}
-      ${w.exercises.map((e) => html`<div class="semibold mt8">${e.name}</div><div class="small muted">${e.sets.map((s) => `${fmtWeight(s.weight)}×${s.reps}`).join("   ")}</div>`)}
-      <div class="row mt12"><span class="grow"></span><span onClick=${(e) => e.stopPropagation()}><${GhostButton} text="Удалить" icon="trash" color=${C.pink} height=${40} onClick=${() => setConfirm(true)} /></span></div>
+      ${w.exercises.map((e, i) => html`<div class="row mt8"><div class="grow"><div class="semibold">${e.name}</div>
+        <div class="small muted">${e.sets.map((s) => `${fmtWeight(s.weight)}×${s.reps}`).join("   ")}</div></div>
+        <button class="icon-btn" style=${{ color: C.faint }} aria-label="Убрать" onClick=${(ev) => { ev.stopPropagation(); setRemoveIdx(i); }}><${Icon} n="close" /></button></div>`)}
+      <div class="row gap8 mt12" onClick=${(e) => e.stopPropagation()}>
+        <${GhostButton} text="Упражнение" icon="add" color=${C.lime} height=${40} grow onClick=${() => setPicking(true)} />
+        <${GhostButton} text="Удалить" icon="trash" color=${C.pink} height=${40} onClick=${() => setConfirm(true)} />
+      </div>
     </div>`}
+    <span onClick=${(e) => e.stopPropagation()}>
+      ${removeIdx != null && html`<${ConfirmDialog} title=${`Убрать «${w.exercises[removeIdx]?.name || ""}»?`} text="Упражнение и его подходы пропадут из этой тренировки."
+        confirm="Убрать" danger onClose=${() => setRemoveIdx(null)} onOk=${() => L.removeFromHistory(w.id, removeIdx)} />`}
+      ${picking && html`<${ExercisePicker} exercises=${state.exercises} onClose=${() => setPicking(false)} onPick=${(id) => { setPicking(false); setAdding(id); }} />`}
+      ${adding && html`<${AddSetsDialog} exerciseId=${adding} onClose=${() => setAdding(null)} onSave=${(sets) => L.addToHistory(w.id, adding, sets)} />`}
+    </span>
     ${confirm && html`<span onClick=${(e) => e.stopPropagation()}><${ConfirmDialog} title="Удалить тренировку?" text="Она пропадёт из истории и аналитики." confirm="Удалить" danger onClose=${() => setConfirm(false)} onOk=${() => L.deleteWorkout(w.id)} /></span>`}
   </${Card}>`;
+}
+
+/** Добавить упражнение в прошедшую тренировку: каждый подход — свой вес и повторы. */
+function AddSetsDialog({ exerciseId, onClose, onSave }) {
+  const ex = state.exercises.find((e) => e.id === exerciseId), last = lastSet(exerciseId);
+  const w0 = String(last?.weight ?? 0), r0 = String(last?.reps ?? 10);
+  const [rows, setRows] = useState([[w0, r0], [w0, r0], [w0, r0]]);
+  const parsed = rows.map(([w, r]) => [parseFloat(String(w).replace(",", ".")), parseInt(r, 10)]);
+  const ok = rows.length > 0 && parsed.every(([w, r]) => !isNaN(w) && r > 0);
+  const set = (i, j, v) => setRows((rs) => rs.map((row, k) => (k === i ? (j ? [row[0], v] : [v, row[1]]) : row)));
+  return html`<${Dialog} title=${ex?.name || ""} onClose=${onClose} actions=${html`
+    <${Act} text="Отмена" color=${C.muted} onClick=${onClose} />
+    <${Act} text="Добавить" disabled=${!ok} onClick=${() => { onSave(parsed.map(([weight, reps]) => ({ weight, reps }))); onClose(); }} />`}>
+    ${rows.map(([w, r], i) => html`<div class="row gap8" style=${{ marginBottom: "8px" }}>
+      <span class="display lime" style=${{ width: "18px" }}>${i + 1}</span>
+      <div class="grow"><div class="field-label">Вес, кг</div><input class="input" inputmode="decimal" value=${w} onInput=${(e) => set(i, 0, e.target.value)} /></div>
+      <div class="grow"><div class="field-label">${ex?.timed ? "Секунды" : "Повторы"}</div><input class="input" inputmode="numeric" value=${r} onInput=${(e) => set(i, 1, e.target.value)} /></div>
+      <button class="icon-btn" style=${{ color: C.faint, marginTop: "18px" }} onClick=${() => setRows(rows.filter((_, k) => k !== i))}><${Icon} n="close" /></button>
+    </div>`)}
+    <${GhostButton} text="Подход" icon="add" height=${40} style=${{ width: "100%" }} onClick=${() => setRows([...rows, rows[rows.length - 1] || [w0, r0]])} />
+  </${Dialog}>`;
 }

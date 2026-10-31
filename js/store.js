@@ -102,6 +102,16 @@ export function mergePack(pack) {
       s.plans = s.plans.filter((p) => p.day < today);
     }
     if (pack.goals) { s.goals = { ...s.goals, ...pack.goals }; res.goals = true; }
+    // дописать упражнение в прошедшую тренировку (день yyyy-MM-dd + программа), один раз
+    for (const h of pack.historyAdd || []) {
+      const ex = s.exercises.find((x) => x.name.toLowerCase() === h.exercise.toLowerCase());
+      if (!ex) continue;
+      for (const w of s.history) {
+        if (w.programName !== h.programName || dayKey(w.startedAt) !== h.day || w.exercises.some((e) => e.exerciseId === ex.id)) continue;
+        w.exercises.push({ exerciseId: ex.id, name: ex.name, sets: h.sets.map((x) => ({ weight: x.weight, reps: x.reps, doneAt: w.finishedAt })) });
+        res.history = (res.history || 0) + 1;
+      }
+    }
     if (pack.weight && !s.weights.length) s.weights.push({ day: dayKey(), kg: pack.weight });
   });
   return res;

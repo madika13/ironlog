@@ -9,7 +9,16 @@ export const warmupElapsedMs = (a, t = now()) => a.warmupAccumMs + (a.warmupStar
 
 // ---------- справочник ----------
 export function saveProgram(p) {
-  update((s) => { const i = s.programs.findIndex((x) => x.id === p.id); if (i >= 0) s.programs[i] = p; else s.programs.push(p); });
+  update((s) => {
+    const i = s.programs.findIndex((x) => x.id === p.id);
+    const old = i >= 0 ? s.programs[i] : null;
+    if (i >= 0) s.programs[i] = p; else s.programs.push(p);
+    // если по этой программе идёт тренировка — правки сразу применяются к ней
+    const a = s.active;
+    if (a && (a.programName === old?.name || a.programName === p.name)) {
+      a.plan = structuredClone(p.exercises); a.programName = p.name; a.restSetSec = p.restSetSec; a.restExerciseSec = p.restExerciseSec;
+    }
+  });
 }
 export const deleteProgram = (id) => update((s) => { s.programs = s.programs.filter((p) => p.id !== id); });
 export function saveExercise(e) {
@@ -80,7 +89,31 @@ export function completeSet() {
 }
 export const addRest = (sec) => act((a) => { a.restEndsAt = Math.max(now() + 1000, a.restEndsAt + sec * 1000); });
 export const endRest = () => act((a) => { if (a.phase === "REST_SET") a.phase = "SET"; });
-export const extraSet = () => act((a) => { a.phase = "SET"; a.targetSets = (currentLog(a)?.sets.length || 0) + 1; });
+export const extraSet = () => act((a) => { if (!currentLog(a)) return; a.phase = "SET"; a.targetSets = currentLog(a).sets.length + 1; });
+
+/** Убрать упражнение из идущей тренировки (вместе с его подходами). */
+export function removeFromWorkout(id) {
+  act((a) => {
+    const cur = currentLog(a);
+    a.plan = a.plan.filter((p) => p.exerciseId !== id);
+    a.logs = a.logs.filter((l) => l.exerciseId !== id);
+    a.currentLog = !cur || cur.exerciseId === id ? -1 : a.logs.indexOf(cur);
+    if (a.nextExerciseId === id) a.nextExerciseId = null;
+  });
+}
+
+// ---------- правка истории ----------
+/** sets — [{ weight, reps }]. */
+export function addToHistory(workoutId, exerciseId, sets) {
+  update((s) => {
+    const w = s.history.find((x) => x.id === workoutId), ex = exercise(exerciseId);
+    if (w && ex) w.exercises.push({ exerciseId, name: ex.name, sets: sets.map((x) => ({ weight: x.weight, reps: x.reps, doneAt: w.finishedAt })) });
+  });
+}
+export const removeFromHistory = (workoutId, index) => update((s) => {
+  const w = s.history.find((x) => x.id === workoutId);
+  if (w) w.exercises.splice(index, 1);
+});
 
 export function finishExercise() {
   act((a) => {

@@ -4,7 +4,7 @@ import * as L from "../logic.js";
 import { sound } from "../sound.js";
 import {
   html, C, Icon, NeonButton, GhostButton, RoundIcon, Card, Label, Title, Badge, Segmented, Stepper, StatTile, Ring,
-  Dialog, Act, NumberDialog, ExercisePicker, useNow, fmtWeight, fmtNum, fmtBig, fmtClock, fmtRest, weightLabel,
+  Dialog, Act, NumberDialog, ConfirmDialog, ExercisePicker, useNow, fmtWeight, fmtNum, fmtBig, fmtClock, fmtRest, weightLabel,
   TYPE, WARM, typeColor, warmColor,
 } from "../ui.js";
 
@@ -156,11 +156,19 @@ function WarmupDialog({ a, clockMin, onClose }) {
 
 // ---------- выбор упражнения ----------
 function ChoiceList({ a, selected, onPick }) {
+  const [removing, setRemoving] = useState(null);
   const planIds = a.plan.map((p) => p.exerciseId);
   const extra = [...new Set(a.logs.map((l) => l.exerciseId))].filter((id) => !planIds.includes(id));
   const rows = [...a.plan.map((p) => [p.exerciseId, p]), ...extra.map((id) => [id, null])];
   rows.sort((x, y) => (L.setsDone(a, x[0]) >= (x[1]?.sets ?? 1)) - (L.setsDone(a, y[0]) >= (y[1]?.sets ?? 1)));
-  return html`<div class="list" style=${{ gap: "10px" }}>${rows.map(([id, pe]) => {
+  // выбранное из справочника показываем первым, чтобы было видно, что выбор принят
+  if (selected && !rows.some(([id]) => id === selected)) rows.unshift([selected, null]);
+  const remSets = removing ? L.setsDone(a, removing) : 0;
+  return html`<div class="list" style=${{ gap: "10px" }}>
+    ${removing && html`<${ConfirmDialog} title=${`Убрать «${exercise(removing)?.name || ""}»?`} confirm="Убрать" danger
+      text=${remSets ? `Упражнение уберётся из этой тренировки вместе с ${remSets} подх.` : "Упражнение уберётся из этой тренировки. Программа не изменится."}
+      onClose=${() => setRemoving(null)} onOk=${() => L.removeFromWorkout(removing)} />`}
+    ${rows.map(([id, pe]) => {
     const ex = exercise(id); if (!ex) return null;
     const done = L.setsDone(a, id), target = pe?.sets ?? done, finished = done >= target && done > 0, sel = id === selected;
     const sub = pe ? (ex.timed ? `${pe.sets} × ${pe.reps} с` : `${pe.sets} × ${pe.reps} · ${weightLabel(lastSet(id)?.weight ?? pe.weight)}`) : "вне программы";
@@ -171,6 +179,8 @@ function ChoiceList({ a, selected, onPick }) {
         <div class="grow"><div class="bold" style=${{ fontSize: "16px", color: finished && !sel ? C.muted : C.text }}>${ex.name}</div>
           <div class="small muted">${ex.muscle} · ${sub}</div></div>
         ${sel && html`<${Icon} n="check" size=${22} color=${C.lime} />`}
+        <button class="icon-btn" style=${{ color: C.faint }} aria-label="Убрать"
+          onClick=${(e) => { e.stopPropagation(); setRemoving(id); }}><${Icon} n="close" /></button>
       </div>
     </${Card}>`;
   })}</div>`;
